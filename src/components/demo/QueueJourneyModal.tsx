@@ -44,21 +44,21 @@ function QueueJourneyModal({
         ? '쿠폰 발급하기'
         : queueStatus?.status === 'WAITING'
           ? '상태 새로고침'
-          : '대기열 입장하기'
+          : '대기열 다시 입장하기'
 
   const totalQueueLength = monitor?.queueLength ?? 0
   const queueStartCount = initialQueueLength ?? monitor?.queueLength ?? 0
-  const totalDrainedCount = Math.max(queueStartCount - totalQueueLength, 0)
+  const drainedCount = Math.max(queueStartCount - totalQueueLength, 0)
 
-  const myQueueStart = initialQueuePosition ?? queueStatus?.currentPosition ?? 0
-  const myCurrentQueue =
+  const startPosition = initialQueuePosition ?? queueStatus?.currentPosition ?? queueStatus?.aheadCount ?? 0
+  const currentPosition =
     queueStatus?.status === 'WAITING'
       ? Math.max(queueStatus.currentPosition ?? queueStatus.aheadCount ?? 0, 0)
       : queueStatus?.status === 'ADMITTED' || queueStatus?.status === 'ENTERED'
         ? 0
-        : myQueueStart
-  const myDrainedCount = Math.max(myQueueStart - myCurrentQueue, 0)
-  const myQueueProgress = myQueueStart > 0 ? Math.min((myDrainedCount / myQueueStart) * 100, 100) : 0
+        : startPosition
+  const advancedCount = Math.max(startPosition - currentPosition, 0)
+  const queueProgress = startPosition > 0 ? Math.min((advancedCount / startPosition) * 100, 100) : 0
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-950/55 px-4 py-6 backdrop-blur-sm sm:items-center">
@@ -85,6 +85,7 @@ function QueueJourneyModal({
             {queueStatus ? <StatusBadge status={queueStatus.status} /> : <Badge tone="neutral">READY</Badge>}
             {queueStatus?.canEnter ? <Badge tone="success">입장 가능</Badge> : null}
             {couponResult?.outcome === 'SUCCESS' ? <Badge tone="success">쿠폰 발급 완료</Badge> : null}
+            {couponResult?.outcome === 'SOLD_OUT' ? <Badge tone="warning">쿠폰 소진</Badge> : null}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -115,30 +116,30 @@ function QueueJourneyModal({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">Live Queue Flow</p>
-                <h4 className="mt-2 text-lg font-black tracking-tight text-slate-950">내 앞 대기 인원이 실시간으로 줄어들고 있습니다</h4>
+                <h4 className="mt-2 text-lg font-black tracking-tight text-slate-950">내 순번이 실시간으로 줄어들고 있습니다</h4>
               </div>
-              <Badge tone={myDrainedCount > 0 ? 'success' : 'neutral'}>{formatNumber(myDrainedCount)}명 통과</Badge>
+              <Badge tone={advancedCount > 0 ? 'success' : 'neutral'}>{formatNumber(advancedCount)}명 통과</Badge>
             </div>
 
             <div className="mt-4 h-3 overflow-hidden rounded-full bg-orange-100">
               <div
                 className="h-full rounded-full bg-[linear-gradient(90deg,#f97316_0%,#fb923c_55%,#fdba74_100%)] transition-all duration-700"
-                style={{ width: `${myQueueProgress}%` }}
+                style={{ width: `${queueProgress}%` }}
               />
             </div>
 
             <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.16em] text-slate-400">시작 순번</p>
-                <p className="mt-1 text-base font-bold text-slate-950">{formatNumber(myQueueStart)}명</p>
+                <p className="mt-1 text-base font-bold text-slate-950">{formatNumber(startPosition)}명</p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.16em] text-slate-400">현재 내 순번</p>
-                <p className="mt-1 text-base font-bold text-slate-950">{formatNumber(myCurrentQueue)}명</p>
+                <p className="mt-1 text-base font-bold text-slate-950">{formatNumber(currentPosition)}명</p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.16em] text-slate-400">전체 처리 인원</p>
-                <p className="mt-1 text-base font-bold text-slate-950">{formatNumber(totalDrainedCount)}명</p>
+                <p className="mt-1 text-base font-bold text-slate-950">{formatNumber(drainedCount)}명</p>
               </div>
             </div>
           </div>
