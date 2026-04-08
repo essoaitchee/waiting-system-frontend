@@ -2,10 +2,13 @@ import Button from '@/components/ui/Button'
 import type { CouponListItem } from '@/types/coupon'
 import { formatDateTime, formatNumber } from '@/utils/format'
 
+export type IssuedCouponsModalVariant = 'success' | 'soldOut'
+
 interface IssuedCouponsModalProps {
   isOpen: boolean
   couponName: string | null
   coupons: CouponListItem[]
+  variant?: IssuedCouponsModalVariant
   isResetting: boolean
   onReset: () => void
   onClose: () => void
@@ -15,6 +18,7 @@ function IssuedCouponsModal({
   isOpen,
   couponName,
   coupons,
+  variant = 'success',
   isResetting,
   onReset,
   onClose,
@@ -24,16 +28,21 @@ function IssuedCouponsModal({
   }
 
   const issuedCoupons = coupons.filter((coupon) => coupon.issued)
+  const isSoldOut = variant === 'soldOut'
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">
       <div className="w-full max-w-xl rounded-[32px] border border-white/70 bg-white p-6 shadow-soft sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">Coupon Issued</p>
+        <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${isSoldOut ? 'text-amber-600' : 'text-emerald-600'}`}>
+          {isSoldOut ? 'Coupon Sold Out' : 'Coupon Issued'}
+        </p>
         <h2 className="mt-3 text-3xl font-black tracking-tight text-slate-950">
-          {couponName ? `${couponName} 쿠폰이 발급되었습니다!` : '쿠폰이 발급되었습니다!'}
+          {isSoldOut ? '쿠폰이 모두 소진되었습니다' : couponName ? `${couponName} 쿠폰이 발급되었습니다!` : '쿠폰이 발급되었습니다!'}
         </h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          현재 계정으로 보유 중인 쿠폰 목록입니다. 테스트를 다시 진행하려면 아래에서 바로 초기화할 수 있습니다.
+          {isSoldOut
+            ? '대기 중이던 쿠폰 수량이 모두 소진되어 이번 라운드는 종료되었습니다. 아래에서 현재 계정의 보유 쿠폰을 확인하거나 초기화 후 다시 테스트할 수 있습니다.'
+            : '현재 계정으로 보유 중인 쿠폰 목록입니다. 테스트를 다시 진행하려면 아래에서 바로 초기화할 수 있습니다.'}
         </p>
 
         <div className="mt-6 rounded-[28px] border border-slate-200 bg-slate-50 p-4">

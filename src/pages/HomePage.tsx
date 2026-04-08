@@ -6,7 +6,7 @@ import { fetchProducts } from '@/api/products'
 import { admitNextBatch, consumeAdmissionToken } from '@/api/queue'
 import CountdownOpenBar from '@/components/demo/CountdownOpenBar'
 import DemoHero from '@/components/demo/DemoHero'
-import IssuedCouponsModal from '@/components/demo/IssuedCouponsModal'
+import IssuedCouponsModal, { type IssuedCouponsModalVariant } from '@/components/demo/IssuedCouponsModal'
 import LiveStatePanel, { type DemoApiLogEntry } from '@/components/demo/LiveStatePanel'
 import LoginGateModal from '@/components/demo/LoginGateModal'
 import PromoProductCard from '@/components/demo/PromoProductCard'
@@ -143,6 +143,7 @@ function HomePage() {
   const [isCouponLoading, setIsCouponLoading] = useState(false)
   const [isQueueModalOpen, setIsQueueModalOpen] = useState(false)
   const [isIssuedCouponsModalOpen, setIsIssuedCouponsModalOpen] = useState(false)
+  const [issuedCouponsModalVariant, setIssuedCouponsModalVariant] = useState<IssuedCouponsModalVariant>('success')
   const [isJoining, setIsJoining] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isRoundLoading, setIsRoundLoading] = useState(false)
@@ -151,14 +152,20 @@ function HomePage() {
   const [isResetting, setIsResetting] = useState(false)
   const autoAdvanceKeyRef = useRef<string | null>(null)
   const autoAdvanceTimeoutRef = useRef<number | null>(null)
-  const lastSuccessAlertKeyRef = useRef<string | null>(null)
+  const lastTerminalAlertKeyRef = useRef<string | null>(null)
 
   const queueStatus = useMemo(() => toQueueStatusData(monitor), [monitor])
   const activeCouponId = selectedCoupon?.couponId ?? DEMO_COUPON_ID
   const isRoundOpen = roundData?.open ?? false
   const guideMessage = useMemo(() => getGuideMessage(queueStatus, couponResult, selectedCoupon, Boolean(authSession)), [authSession, couponResult, queueStatus, selectedCoupon])
   const lastResponseStatus = useMemo(() => getLastResponseStatus(queueStatus, couponResult, errorMessage), [couponResult, errorMessage, queueStatus])
-  const shouldPoll = Boolean(authSession && queueStatus && (queueStatus.status === 'WAITING' || queueStatus.status === 'ADMITTED') && couponResult?.outcome !== 'SUCCESS')
+  const shouldPoll = Boolean(
+    authSession &&
+      queueStatus &&
+      (queueStatus.status === 'WAITING' || queueStatus.status === 'ADMITTED') &&
+      couponResult?.outcome !== 'SUCCESS' &&
+      couponResult?.outcome !== 'SOLD_OUT',
+  )
   const countdownDisplayMs = useMemo(() => {
     if (!roundData) return 0
     if (roundData.open) return Math.max(roundData.openWindowEndsAtEpochMs - displayNowMs, 0)
@@ -212,7 +219,9 @@ function HomePage() {
     setCouponResult(null)
     setLatestAdmitResult(null)
     setErrorMessage(null)
+    setIssuedCouponsModalVariant('success')
     autoAdvanceKeyRef.current = null
+    lastTerminalAlertKeyRef.current = null
     if (autoAdvanceTimeoutRef.current !== null) {
       window.clearTimeout(autoAdvanceTimeoutRef.current)
       autoAdvanceTimeoutRef.current = null
@@ -810,33 +819,49 @@ function HomePage() {
   }, [couponResult?.outcome, isAdvancing, isJoining, isQueueModalOpen, queueStatus])
 
   useEffect(() => {
-    if (couponResult?.outcome !== 'SUCCESS') {
+    if (
+      !isQueueModalOpen ||
+      couponResult ||
+      !queueStatus ||
+      (queueStatus.status !== 'WAITING' && queueStatus.status !== 'ADMITTED') ||
+      (monitor?.couponRemainingCount ?? 0) > 0
+    ) {
       return
     }
 
-    const successKey = `${couponResult.couponId ?? 'coupon'}:${couponResult.issuedAt ?? 'issued'}:${userId}`
-    if (lastSuccessAlertKeyRef.current === successKey) {
-      return
-    }
-
-    lastSuccessAlertKeyRef.current = successKey
-    setIsQueueModalOpen(false)
-    setIsIssuedCouponsModalOpen(true)
-  }, [couponResult?.couponId, couponResult?.issuedAt, couponResult?.outcome, userId])
+    setCouponResult({
+      couponId: activeCouponId,
+      userId,
+      status: 'SOLD_OUT',
+      remainingCount: 0,
+      issuedAt: null,
+      outcome: 'SOLD_OUT',
+      message: '준비된 쿠폰이 모두 소진되었습니다.',
+    })
+  }, [activeCouponId, couponResult, isQueueModalOpen, monitor?.couponRemainingCount, queueStatus, userId])
 
   useEffect(() => {
-    if (couponResult?.outcome !== 'SUCCESS') {
+    if (couponResult?.outcome !== 'SUCCESS' && couponResult?.outcome !== 'SOLD_OUT') {
       return
     }
 
-    const successKey = `${couponResult.couponId ?? 'coupon'}:${couponResult.issuedAt ?? 'issued'}:${userId}`
-    if (lastSuccessAlertKeyRef.current === successKey) {
+    const terminalKey = `${couponResult.outcome}:${couponResult.couponId ?? 'coupon'}:${couponResult.issuedAt ?? 'none'}:${userId}`
+    if (lastTerminalAlertKeyRef.current === terminalKey) {
       return
     }
 
-    lastSuccessAlertKeyRef.current = successKey
-    const couponName = selectedCoupon?.couponName ?? '쿠폰'
-    window.alert(`${couponName} 쿠폰이 발급되었습니다!`)
+    lastTerminalAlertKeyRef.current = terminalKey
+    setIssuedCouponsModalVariant(couponResult.outcome === 'SUCCESS' ? 'success' : 'soldOut')
+    setIsQueueModalOpen(false)
+    setIsIssuedCouponsModalOpen(true)
+
+    if (couponResult.outcome === 'SUCCESS') {
+      const couponName = selectedCoupon?.couponName ?? '쿠폰'
+      window.alert(`${couponName} 쿠폰이 발급되었습니다!`)
+      return
+    }
+
+    window.alert('쿠폰이 모두 소진되었습니다.')
   }, [couponResult?.couponId, couponResult?.issuedAt, couponResult?.outcome, selectedCoupon?.couponName, userId])
 
   return (
@@ -1001,6 +1026,7 @@ function HomePage() {
         isOpen={isIssuedCouponsModalOpen}
         couponName={selectedCoupon?.couponName ?? null}
         coupons={coupons}
+        variant={issuedCouponsModalVariant}
         isResetting={isResetting}
         onReset={() => {
           void handleResetCoupons()
