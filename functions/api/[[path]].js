@@ -9,6 +9,9 @@ export async function onRequest(context) {
 
   const headers = new Headers(request.headers)
   headers.delete('host')
+  headers.delete('origin')
+  headers.delete('access-control-request-method')
+  headers.delete('access-control-request-headers')
 
   const upstream = await fetch(targetUrl.toString(), {
     method: request.method,
