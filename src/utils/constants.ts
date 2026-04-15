@@ -1,6 +1,7 @@
 const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL
 
-export const API_BASE_URL = typeof rawApiBaseUrl === 'string' ? rawApiBaseUrl.trim() : ''
+// export const API_BASE_URL = typeof rawApiBaseUrl === 'string' ? rawApiBaseUrl.trim() : ''
+export const API_BASE_URL = 'https://waiting.shwork.site'
 
 export const QUEUE_STATUS_POLL_INTERVAL_MS = 1000
 
