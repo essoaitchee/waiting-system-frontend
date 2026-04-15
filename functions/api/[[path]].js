@@ -2,7 +2,6 @@ export async function onRequest(context) {
   const { request, env, params } = context
   const incomingUrl = new URL(request.url)
   const path = Array.isArray(params.path) ? params.path.join('/') : params.path || ''
-  const origin = env.API_ORIGIN || 'http://52.79.82.54:8081'
   const targetUrl = new URL(`/api/${path}`, origin)
 
   targetUrl.search = incomingUrl.search
